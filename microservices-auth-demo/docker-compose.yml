@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # Service Registry (Eureka Server)
+  service-registry:
+    build:
+      context: ./service-registry
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - microservices-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # Chat Service
+  chat-service:
+    build:
+      context: ./chat-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # HRMS Service
+  hrms-service:
+    build:
+      context: ./hrms-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - SPRING_CLOUD_LOADBALANCER_RIBBON_ENABLED=false
+      - SPRING_CLOUD_GATEWAY_ROUTES[0]_ID=auth-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[0]_URI=http://auth-service:8081
+      - SPRING_CLOUD_GATEWAY_ROUTES[0]_PREDICATES[0]=Path=/api/auth/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[1]_ID=chat-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[1]_URI=http://chat-service:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES[1]_PREDICATES[0]=Path=/api/chat/**
+      - SPRING_CLOUD_GATEWAY_ROUTES[2]_ID=hrms-service
+      - SPRING_CLOUD_GATEWAY_ROUTES[2]_URI=http://hrms-service:8083
+      - SPRING_CLOUD_GATEWAY_ROUTES[2]_PREDICATES[0]=Path=/api/hrms/**
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      chat-service:
+        condition: service_started
+      hrms-service:
+        condition: service_started
+    networks:
+      - microservices-network
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge 

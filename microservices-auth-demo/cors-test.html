@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Headers Test</h1>
+    <button id="testButton">Test CORS Headers</button>
+    <div id="result" style="white-space: pre-wrap; font-family: monospace; margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        document.getElementById('testButton').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing CORS headers...\n\n';
+            
+            try {
+                // Make a preflight OPTIONS request to test CORS headers
+                const response = await fetch('http://localhost:8080/api/v1/auth/ping', {
+                    method: 'OPTIONS'
+                });
+                
+                resultDiv.innerHTML += 'Response status: ' + response.status + '\n\n';
+                resultDiv.innerHTML += 'Response headers:\n';
+                
+                // Display all headers with special emphasis on CORS headers
+                const headers = response.headers;
+                let corsHeadersFound = 0;
+                
+                for (const [key, value] of headers.entries()) {
+                    let headerLine = `${key}: ${value}`;
+                    
+                    if (key.toLowerCase().startsWith('access-control')) {
+                        headerLine = `<strong style="color: red;">${headerLine}</strong>`;
+                        corsHeadersFound++;
+                    }
+                    
+                    resultDiv.innerHTML += headerLine + '\n';
+                }
+                
+                resultDiv.innerHTML += '\n';
+                resultDiv.innerHTML += `Total CORS headers found: ${corsHeadersFound}`;
+                
+                // Check for duplicate Access-Control-Allow-Origin
+                const originHeader = headers.get('access-control-allow-origin');
+                if (originHeader && originHeader.includes(',')) {
+                    resultDiv.innerHTML += '\n\n<strong style="color: red;">WARNING: Multiple Access-Control-Allow-Origin values detected!</strong>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html> 

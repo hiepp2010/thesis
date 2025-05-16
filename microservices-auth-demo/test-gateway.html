@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Gateway Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            max-width: 300px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        input {
+            padding: 8px;
+            margin-top: 5px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .response-headers {
+            margin-top: 10px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .debug-info {
+            margin-top: 10px;
+            background-color: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #fff;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>API Gateway Test</h1>
+    
+    <div class="tab-container">
+        <div class="tab active" onclick="openTab(event, 'auth-tab')">Authentication</div>
+        <div class="tab" onclick="openTab(event, 'chat-tab')">Chat Service</div>
+        <div class="tab" onclick="openTab(event, 'hrms-tab')">HRMS Service</div>
+        <div class="tab" onclick="openTab(event, 'cors-test-tab')">CORS Test</div>
+    </div>
+    
+    <div class="container">
+        <div id="auth-tab" class="tab-content active">
+            <div>
+                <h2>Register User</h2>
+                <div class="input-group">
+                    <label for="register-username">Username:</label>
+                    <input type="text" id="register-username" value="testuser2">
+                </div>
+                <div class="input-group">
+                    <label for="register-email">Email:</label>
+                    <input type="email" id="register-email" value="test2@example.com">
+                </div>
+                <div class="input-group">
+                    <label for="register-password">Password:</label>
+                    <input type="password" id="register-password" value="password123">
+                </div>
+                <button onclick="registerUser()">Register User</button>
+            </div>
+
+            <div>
+                <h2>Login User</h2>
+                <div class="input-group">
+                    <label for="login-username">Username:</label>
+                    <input type="text" id="login-username" value="testuser">
+                </div>
+                <div class="input-group">
+                    <label for="login-password">Password:</label>
+                    <input type="password" id="login-password" value="password123">
+                </div>
+                <button onclick="loginUser()">Login User</button>
+            </div>
+
+            <div>
+                <h2>Check Username Availability</h2>
+                <div class="input-group">
+                    <label for="check-username">Username:</label>
+                    <input type="text" id="check-username" value="testuser">
+                </div>
+                <button onclick="checkUsername()">Check Username</button>
+            </div>
+        </div>
+
+        <div id="chat-tab" class="tab-content">
+            <h2>Chat Service</h2>
+            <div class="input-group">
+                <label for="chat-token">JWT Token:</label>
+                <input type="text" id="chat-token" placeholder="Enter JWT token here">
+            </div>
+            <button onclick="testChatStatus()">Get Chat Status</button>
+            <button onclick="testChatPublicEndpoint()">Test Public Endpoint</button>
+        </div>
+
+        <div id="hrms-tab" class="tab-content">
+            <h2>HRMS Service</h2>
+            <div class="input-group">
+                <label for="hrms-token">JWT Token:</label>
+                <input type="text" id="hrms-token" placeholder="Enter JWT token here">
+            </div>
+            <button onclick="testHrmsEndpoint()">Test HRMS Endpoint</button>
+        </div>
+
+        <div id="cors-test-tab" class="tab-content">
+            <h2>CORS Test</h2>
+            <div class="input-group">
+                <label for="cors-endpoint">API Endpoint:</label>
+                <input type="text" id="cors-endpoint" value="http://localhost:8080/api/auth/check-username?username=test">
+            </div>
+            <div class="input-group">
+                <label for="cors-method">HTTP Method:</label>
+                <select id="cors-method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="OPTIONS">OPTIONS</option>
+                </select>
+            </div>
+            <button onclick="testCORS()">Test CORS</button>
+        </div>
+
+        <div>
+            <h2>Response:</h2>
+            <pre id="response">Response will appear here</pre>
+            <div class="response-headers" id="response-headers">Response headers will appear here</div>
+            <div class="debug-info" id="debug-info">Debug information will appear here</div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+            
+            const tabs = document.getElementsByClassName("tab");
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        // Helper function to display response and headers
+        function displayResponse(response, data, error = null) {
+            if (response) {
+                // Display response headers
+                let headerText = "Response Headers:\n";
+                for (const [key, value] of response.headers.entries()) {
+                    headerText += `${key}: ${value}\n`;
+                }
+                document.getElementById('response-headers').textContent = headerText;
+            } else {
+                document.getElementById('response-headers').textContent = "No response headers available";
+            }
+
+            // Display response data
+            if (data) {
+                document.getElementById('response').textContent = typeof data === 'object' 
+                    ? JSON.stringify(data, null, 2) 
+                    : data;
+            } else if (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+            
+            // Display debug info
+            const debugInfo = {
+                timestamp: new Date().toISOString(),
+                status: response ? response.status : 'N/A',
+                statusText: response ? response.statusText : 'N/A',
+                url: response ? response.url : 'N/A',
+                type: response ? response.type : 'N/A',
+                error: error ? error.toString() : null
+            };
+            document.getElementById('debug-info').textContent = JSON.stringify(debugInfo, null, 2);
+        }
+
+        // Register user
+        async function registerUser() {
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/register', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+                
+                // If token is returned, set it in the token fields
+                if (data.token) {
+                    document.getElementById('chat-token').value = data.token;
+                    document.getElementById('hrms-token').value = data.token;
+                }
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('Registration error:', error);
+            }
+        }
+        
+        // Login user
+        async function loginUser() {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/auth/authenticate', {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+                
+                // If token is returned, set it in the token fields
+                if (data.token) {
+                    document.getElementById('chat-token').value = data.token;
+                    document.getElementById('hrms-token').value = data.token;
+                }
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('Login error:', error);
+            }
+        }
+        
+        // Check username
+        async function checkUsername() {
+            const username = document.getElementById('check-username').value;
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch(`http://localhost:8080/api/auth/check-username?username=${username}`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('Check username error:', error);
+            }
+        }
+        
+        // Test Chat Status
+        async function testChatStatus() {
+            const token = document.getElementById('chat-token').value;
+            
+            if (!token) {
+                displayResponse(null, null, new Error('No token provided'));
+                return;
+            }
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/chat/status', {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('Chat status error:', error);
+            }
+        }
+        
+        // Test Chat Public Endpoint
+        async function testChatPublicEndpoint() {
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/chat/public/info', {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('Chat public endpoint error:', error);
+            }
+        }
+        
+        // Test HRMS Endpoint
+        async function testHrmsEndpoint() {
+            const token = document.getElementById('hrms-token').value;
+            
+            if (!token) {
+                displayResponse(null, null, new Error('No token provided'));
+                return;
+            }
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/hrms/employees', {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+                
+                displayResponse(response, data);
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('HRMS endpoint error:', error);
+            }
+        }
+        
+        // Test CORS
+        async function testCORS() {
+            const endpoint = document.getElementById('cors-endpoint').value;
+            const method = document.getElementById('cors-method').value;
+            
+            document.getElementById('response').textContent = 'Sending request...';
+            
+            try {
+                // Create a preflight request manually
+                if (method === 'OPTIONS') {
+                    const controller = new AbortController();
+                    const signal = controller.signal;
+                    
+                    setTimeout(() => controller.abort(), 5000); // Timeout after 5 seconds
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'OPTIONS',
+                        mode: 'cors',
+                        headers: {
+                            'Access-Control-Request-Method': 'GET',
+                            'Access-Control-Request-Headers': 'content-type,authorization',
+                            'Origin': window.location.origin
+                        },
+                        signal
+                    });
+                    
+                    displayResponse(response, await response.text());
+                } else {
+                    const response = await fetch(endpoint, {
+                        method: method,
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        data = await response.text();
+                    }
+                    
+                    displayResponse(response, data);
+                }
+            } catch (error) {
+                displayResponse(null, null, error);
+                console.error('CORS test error:', error);
+            }
+        }
+    </script>
+</body>
+</html> 

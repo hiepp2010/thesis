@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      default-filters:
+        # Remove CORS headers from downstream services
+        - RemoveResponseHeader=Access-Control-Allow-Origin
+        - RemoveResponseHeader=Access-Control-Allow-Methods
+        - RemoveResponseHeader=Access-Control-Allow-Headers
+        - RemoveResponseHeader=Access-Control-Allow-Credentials
+        - RemoveResponseHeader=Access-Control-Expose-Headers
+        - RemoveResponseHeader=Access-Control-Max-Age
+        # Re-add CORS headers at the gateway level
+        - AddResponseHeader=Access-Control-Allow-Origin, *
+        - AddResponseHeader=Access-Control-Allow-Methods, GET,POST,PUT,DELETE,OPTIONS
+        - AddResponseHeader=Access-Control-Allow-Headers, *
+        - DedupeResponseHeader=Vary, RETAIN_FIRST
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    instance-id: ${spring.application.name}:${random.uuid}
+
+security:
+  jwt:
+    secret-key: mysupersecretkeyformicroservicesauthenticationandjwttokens2024
+    header-name: "Authorization"
+    token-prefix: "Bearer " 
