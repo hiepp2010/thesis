@@ -1,1 +1,0 @@
-# Microservices Auth Demo - Frontend

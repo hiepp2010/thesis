@@ -8,6 +8,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,10 +22,11 @@ import java.io.IOException;
 import java.security.Key;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     @Value("${security.jwt.secret-key}")
     private String secretKey;
@@ -38,27 +41,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String username;
 
+        logger.info("Request path: {}", request.getServletPath());
+
         // Skip validation for certain paths
-        if (request.getServletPath().contains("/h2-console") ||
-                request.getServletPath().contains("/api/chat/public")) {
+        if (request.getServletPath().contains("/api/chat/public") ||
+                request.getServletPath().equals("/api/chat/public/health") ||
+                request.getServletPath().equals("/api/chat/public/test")) {
+            logger.info("Skipping JWT validation for public endpoint");
             filterChain.doFilter(request, response);
             return;
         }
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("No Authorization header or invalid format");
             filterChain.doFilter(request, response);
             return;
         }
 
         jwt = authHeader.substring(7);
+        logger.info("JWT token received: {}", jwt);
+        
         try {
             Claims claims = extractAllClaims(jwt);
             username = claims.getSubject();
+            logger.info("JWT validated for username: {}", username);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 // Extract roles from token
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 if (claims.get("roles") != null) {
+                    logger.info("Roles from token: {}", claims.get("roles"));
                     if (claims.get("roles") instanceof List) {
                         ((List<?>) claims.get("roles")).forEach(role -> {
                             authorities.add(new SimpleGrantedAuthority(role.toString()));
@@ -73,8 +85,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authorities
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                logger.info("Authentication set in SecurityContext");
             }
         } catch (Exception e) {
+            logger.error("JWT validation failed: {}", e.getMessage());
             // Invalid token, continue without setting authentication
         }
 
@@ -94,4 +108,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         return Keys.hmacShaKeyFor(keyBytes);
     }
-} 
+}

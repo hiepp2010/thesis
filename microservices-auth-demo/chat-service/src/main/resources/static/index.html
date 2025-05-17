@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>Chat WebSocket Demo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        #chat-page {
+            display: none;
+        }
+        .chat-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .message-content {
+            padding: 5px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .chat-header {
+            text-align: center;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .event-message {
+            text-align: center;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        .message-list {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="username-page" class="row justify-content-center">
+            <div class="col-md-6 mt-5">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Enter Your Username</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="usernameForm">
+                            <div class="form-group">
+                                <input type="text" id="name" class="form-control" placeholder="Username" autocomplete="off" />
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary btn-block">Start Chatting</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-page" class="chat-container">
+            <div class="chat-header">
+                <h2>Spring Boot WebSocket Chat Demo</h2>
+            </div>
+            <div class="message-list" id="messageArea"></div>
+            <form id="messageForm">
+                <div class="form-group">
+                    <div class="input-group">
+                        <input type="text" id="message" class="form-control" placeholder="Type a message..."/>
+                        <div class="input-group-append">
+                            <button type="submit" class="btn btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        const usernamePage = document.getElementById('username-page');
+        const chatPage = document.getElementById('chat-page');
+        const usernameForm = document.getElementById('usernameForm');
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('message');
+        const messageArea = document.getElementById('messageArea');
+        const connectingElement = document.createElement('div');
+
+        let stompClient = null;
+        let username = null;
+
+        function connect(event) {
+            if (event) {
+                event.preventDefault();
+            }
+            
+            username = document.getElementById('name').value.trim();
+            
+            if (username) {
+                usernamePage.style.display = 'none';
+                chatPage.style.display = 'block';
+                
+                connectingElement.classList.add('connecting');
+                connectingElement.textContent = 'Connecting...';
+                messageArea.appendChild(connectingElement);
+
+                const socket = new SockJS('/ws');
+                stompClient = Stomp.over(socket);
+                
+                stompClient.connect({}, onConnected, onError);
+            }
+        }
+
+        function onConnected() {
+            // Subscribe to the Public Topic
+            stompClient.subscribe('/topic/public', onMessageReceived);
+
+            // Tell your username to the server
+            stompClient.send("/app/chat.addUser",
+                {},
+                JSON.stringify({sender: username, type: 'JOIN'})
+            );
+            
+            connectingElement.remove();
+        }
+
+        function onError(error) {
+            connectingElement.textContent = 'Could not connect to WebSocket server. Please refresh the page and try again!';
+            connectingElement.style.color = 'red';
+        }
+
+        function sendMessage(event) {
+            event.preventDefault();
+            
+            const messageContent = messageInput.value.trim();
+            
+            if (messageContent && stompClient) {
+                const chatMessage = {
+                    sender: username,
+                    content: messageContent,
+                    type: 'CHAT'
+                };
+                
+                stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+                messageInput.value = '';
+            }
+        }
+
+        function onMessageReceived(payload) {
+            const message = JSON.parse(payload.body);
+            
+            const messageElement = document.createElement('div');
+            
+            if (message.type === 'JOIN') {
+                messageElement.classList.add('event-message');
+                message.content = message.sender + ' joined!';
+            } else if (message.type === 'LEAVE') {
+                messageElement.classList.add('event-message');
+                message.content = message.sender + ' left!';
+            } else {
+                messageElement.classList.add('chat-message');
+                
+                const avatarElement = document.createElement('span');
+                avatarElement.style.backgroundColor = getAvatarColor(message.sender);
+                avatarElement.classList.add('rounded-circle', 'd-inline-block', 'mr-2');
+                avatarElement.style.width = '30px';
+                avatarElement.style.height = '30px';
+                avatarElement.style.textAlign = 'center';
+                avatarElement.style.lineHeight = '30px';
+                avatarElement.textContent = message.sender.charAt(0).toUpperCase();
+                
+                messageElement.appendChild(avatarElement);
+                
+                const usernameElement = document.createElement('span');
+                usernameElement.classList.add('font-weight-bold', 'mr-2');
+                usernameElement.textContent = message.sender;
+                
+                messageElement.appendChild(usernameElement);
+            }
+            
+            const textElement = document.createElement('span');
+            textElement.classList.add('message-content');
+            textElement.textContent = message.content;
+            
+            messageElement.appendChild(textElement);
+            
+            const timestampElement = document.createElement('small');
+            timestampElement.classList.add('text-muted', 'ml-2');
+            timestampElement.textContent = message.timestamp;
+            
+            messageElement.appendChild(timestampElement);
+            
+            messageArea.appendChild(messageElement);
+            messageArea.scrollTop = messageArea.scrollHeight;
+        }
+
+        function getAvatarColor(messageSender) {
+            const colors = [
+                '#2196F3', '#32c787', '#00BCD4', '#ff5652',
+                '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
+            ];
+            
+            let hash = 0;
+            for (let i = 0; i < messageSender.length; i++) {
+                hash = 31 * hash + messageSender.charCodeAt(i);
+            }
+            
+            const index = Math.abs(hash % colors.length);
+            return colors[index];
+        }
+
+        usernameForm.addEventListener('submit', connect, true);
+        messageForm.addEventListener('submit', sendMessage, true);
+    </script>
+</body>
+</html> 

@@ -44,7 +44,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     // Define a list of paths that should allow public access
     private final List<String> publicEndpoints = List.of(
-            "/api/chat/public"
+            "/api/chat/public",
+            "/api/chat/public/health",
+            "/api/chat/public/test",
+            "/api/chat/public/status",
+            "/api/chat/public/setup-test"
     );
 
     private Predicate<ServerHttpRequest> isOpenEndpoint = request -> 

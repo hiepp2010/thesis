@@ -1,6 +1,43 @@
 version: '3.8'
 
 services:
+  # MySQL Database for Auth Service
+  mysql:
+    image: mysql:8.0
+    container_name: auth-mysql
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=authdb
+      - MYSQL_USER=authuser
+      - MYSQL_PASSWORD=authpassword
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Chat Service
+  redis:
+    image: redis:7.0
+    container_name: chat-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Service Registry (Eureka Server)
   service-registry:
     build:
@@ -24,8 +61,16 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/authdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=authuser
+      - SPRING_DATASOURCE_PASSWORD=authpassword
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.MySQL8Dialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
     depends_on:
       service-registry:
+        condition: service_healthy
+      mysql:
         condition: service_healthy
     networks:
       - microservices-network
@@ -35,10 +80,11 @@ services:
     build:
       context: ./chat-service
     ports:
-      - "8082:8082"
+      - "8084:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - SERVER_PORT=8084
     depends_on:
       service-registry:
         condition: service_healthy
@@ -74,7 +120,7 @@ services:
       - SPRING_CLOUD_GATEWAY_ROUTES[0]_URI=http://auth-service:8081
       - SPRING_CLOUD_GATEWAY_ROUTES[0]_PREDICATES[0]=Path=/api/auth/**
       - SPRING_CLOUD_GATEWAY_ROUTES[1]_ID=chat-service
-      - SPRING_CLOUD_GATEWAY_ROUTES[1]_URI=http://chat-service:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES[1]_URI=http://chat-service:8084
       - SPRING_CLOUD_GATEWAY_ROUTES[1]_PREDICATES[0]=Path=/api/chat/**
       - SPRING_CLOUD_GATEWAY_ROUTES[2]_ID=hrms-service
       - SPRING_CLOUD_GATEWAY_ROUTES[2]_URI=http://hrms-service:8083
@@ -91,18 +137,23 @@ services:
     networks:
       - microservices-network
 
-  # Frontend Service
-  frontend:
-    build:
-      context: ./frontend
+  # Static Frontend for Chat Testing
+  chat-frontend:
+    image: nginx:alpine
     ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - "3000:80"
+    volumes:
+      - ./chat-frontend:/usr/share/nginx/html
     depends_on:
       - api-gateway
     networks:
       - microservices-network
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
 
 networks:
   microservices-network:
