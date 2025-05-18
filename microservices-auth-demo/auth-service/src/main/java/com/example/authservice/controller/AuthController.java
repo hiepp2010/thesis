@@ -2,11 +2,13 @@ package com.example.authservice.controller;
 
 import com.example.authservice.model.*;
 import com.example.authservice.service.AuthService;
+import com.example.authservice.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -15,6 +17,7 @@ import java.util.Set;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtService jwtService;
 
     @GetMapping("/ping")
     public ResponseEntity<String> ping() {
@@ -72,5 +75,31 @@ public class AuthController {
         }
         
         return ResponseEntity.ok(authService.registerWithServiceRoles(request));
+    }
+    
+    @PostMapping("/validate-token")
+    public ResponseEntity<Map<String, Object>> validateToken(@RequestBody TokenValidationRequest request) {
+        try {
+            Map<String, Object> claims = jwtService.extractAllClaims(request.getToken());
+            return ResponseEntity.ok(claims);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "Invalid token",
+                "message", e.getMessage()
+            ));
+        }
+    }
+    
+    @GetMapping("/decode-token")
+    public ResponseEntity<Map<String, Object>> decodeToken(@RequestParam String token) {
+        try {
+            Map<String, Object> claims = jwtService.extractAllClaims(token);
+            return ResponseEntity.ok(claims);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "error", "Invalid token",
+                "message", e.getMessage()
+            ));
+        }
     }
 } 

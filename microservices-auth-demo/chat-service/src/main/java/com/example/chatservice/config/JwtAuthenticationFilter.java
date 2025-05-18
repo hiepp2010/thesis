@@ -42,12 +42,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String username;
 
         logger.info("Request path: {}", request.getServletPath());
+        
+        // Debug for public endpoints
+        if (request.getServletPath().contains("/api/chat/public")) {
+            logger.info("This is a public endpoint that should be allowed: {}", request.getServletPath());
+        }
 
         // Skip validation for certain paths
         if (request.getServletPath().contains("/api/chat/public") ||
                 request.getServletPath().equals("/api/chat/public/health") ||
-                request.getServletPath().equals("/api/chat/public/test")) {
-            logger.info("Skipping JWT validation for public endpoint");
+                request.getServletPath().equals("/api/chat/public/test") ||
+                request.getServletPath().equals("/api/chat/ping") ||
+                request.getServletPath().startsWith("/h2-console")) {
+            logger.info("Skipping JWT validation for public endpoint: {}", request.getServletPath());
             filterChain.doFilter(request, response);
             return;
         }

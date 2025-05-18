@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Message Tester</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        .chat-container {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            max-width: 75%;
+            word-wrap: break-word;
+        }
+        .sender {
+            background-color: #dcf8c6;
+            margin-left: auto;
+        }
+        .receiver {
+            background-color: #f1f0f0;
+            margin-right: auto;
+        }
+        .system-message {
+            text-align: center;
+            color: #777;
+            font-style: italic;
+            margin: 10px 0;
+        }
+        .websocket-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .connected { background-color: green; }
+        .disconnected { background-color: red; }
+        .connecting { background-color: orange; }
+        .message-form {
+            margin-top: 10px;
+        }
+        .log-container {
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin-bottom: 3px;
+        }
+        .log-error { color: red; }
+        .log-info { color: blue; }
+        .log-debug { color: gray; }
+        .username-container {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Direct Message Tester</h1>
+        
+        <div class="row">
+            <!-- User 1 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>
+                            <span id="status1" class="websocket-status disconnected"></span>
+                            User 1
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="login-section mb-3">
+                            <div class="form-row">
+                                <div class="col">
+                                    <input type="text" id="username1" class="form-control" placeholder="Username" value="linh">
+                                </div>
+                                <div class="col">
+                                    <input type="password" id="password1" class="form-control" placeholder="Password" value="1234">
+                                </div>
+                                <div class="col-auto">
+                                    <button id="login1" class="btn btn-primary">Login</button>
+                                    <button id="disconnect1" class="btn btn-danger" style="display:none;">Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-section" style="display:none;">
+                            <div class="chat-container" id="chat1"></div>
+                            <div class="message-form">
+                                <div class="form-row">
+                                    <div class="col">
+                                        <input type="text" id="recipient1" class="form-control" placeholder="Recipient username" value="thai">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button id="startChat1" class="btn btn-info">Start Chat</button>
+                                    </div>
+                                </div>
+                                <div class="form-row mt-2">
+                                    <div class="col">
+                                        <input type="text" id="message1" class="form-control" placeholder="Type a message...">
+                                        <input type="hidden" id="conversationId1" value="">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button id="send1" class="btn btn-success" disabled>Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="log-container" id="log1"></div>
+            </div>
+            
+            <!-- User 2 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>
+                            <span id="status2" class="websocket-status disconnected"></span>
+                            User 2
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="login-section mb-3">
+                            <div class="form-row">
+                                <div class="col">
+                                    <input type="text" id="username2" class="form-control" placeholder="Username" value="thai">
+                                </div>
+                                <div class="col">
+                                    <input type="password" id="password2" class="form-control" placeholder="Password" value="1234">
+                                </div>
+                                <div class="col-auto">
+                                    <button id="login2" class="btn btn-primary">Login</button>
+                                    <button id="disconnect2" class="btn btn-danger" style="display:none;">Disconnect</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-section" style="display:none;">
+                            <div class="chat-container" id="chat2"></div>
+                            <div class="message-form">
+                                <div class="form-row">
+                                    <div class="col">
+                                        <input type="text" id="recipient2" class="form-control" placeholder="Recipient username" value="linh">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button id="startChat2" class="btn btn-info">Start Chat</button>
+                                    </div>
+                                </div>
+                                <div class="form-row mt-2">
+                                    <div class="col">
+                                        <input type="text" id="message2" class="form-control" placeholder="Type a message...">
+                                        <input type="hidden" id="conversationId2" value="">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button id="send2" class="btn btn-success" disabled>Send</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="log-container" id="log2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        // Constants
+        const AUTH_ENDPOINT = 'http://localhost:8080/api/auth/authenticate';
+        const CHAT_SERVICE_URL = 'http://localhost:8084/api/chat';
+        
+        // State for both users
+        const users = {
+            1: {
+                stompClient: null,
+                username: '',
+                token: '',
+                subscriptions: {},
+                conversationId: '',
+                connected: false
+            },
+            2: {
+                stompClient: null,
+                username: '',
+                token: '',
+                subscriptions: {},
+                conversationId: '',
+                connected: false
+            }
+        };
+        
+        // Elements
+        const elements = {
+            1: {
+                loginBtn: document.getElementById('login1'),
+                disconnectBtn: document.getElementById('disconnect1'),
+                startChatBtn: document.getElementById('startChat1'),
+                sendBtn: document.getElementById('send1'),
+                usernameInput: document.getElementById('username1'),
+                passwordInput: document.getElementById('password1'),
+                recipientInput: document.getElementById('recipient1'),
+                messageInput: document.getElementById('message1'),
+                chat: document.getElementById('chat1'),
+                status: document.getElementById('status1'),
+                log: document.getElementById('log1'),
+                loginSection: document.querySelector('.col-md-6:first-child .login-section'),
+                chatSection: document.querySelector('.col-md-6:first-child .chat-section'),
+                conversationIdInput: document.getElementById('conversationId1')
+            },
+            2: {
+                loginBtn: document.getElementById('login2'),
+                disconnectBtn: document.getElementById('disconnect2'),
+                startChatBtn: document.getElementById('startChat2'),
+                sendBtn: document.getElementById('send2'),
+                usernameInput: document.getElementById('username2'),
+                passwordInput: document.getElementById('password2'),
+                recipientInput: document.getElementById('recipient2'),
+                messageInput: document.getElementById('message2'),
+                chat: document.getElementById('chat2'),
+                status: document.getElementById('status2'),
+                log: document.getElementById('log2'),
+                loginSection: document.querySelector('.col-md-6:last-child .login-section'),
+                chatSection: document.querySelector('.col-md-6:last-child .chat-section'),
+                conversationIdInput: document.getElementById('conversationId2')
+            }
+        };
+        
+        // Event Listeners
+        elements[1].loginBtn.addEventListener('click', () => login(1));
+        elements[2].loginBtn.addEventListener('click', () => login(2));
+        elements[1].disconnectBtn.addEventListener('click', () => disconnect(1));
+        elements[2].disconnectBtn.addEventListener('click', () => disconnect(2));
+        elements[1].startChatBtn.addEventListener('click', () => startChat(1));
+        elements[2].startChatBtn.addEventListener('click', () => startChat(2));
+        elements[1].sendBtn.addEventListener('click', () => sendMessage(1));
+        elements[2].sendBtn.addEventListener('click', () => sendMessage(2));
+        elements[1].messageInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage(1);
+            }
+        });
+        elements[2].messageInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage(2);
+            }
+        });
+        
+        // Functions
+        async function login(userId) {
+            const username = elements[userId].usernameInput.value.trim();
+            const password = elements[userId].passwordInput.value.trim();
+            
+            if (!username || !password) {
+                addLog(userId, 'Please enter username and password', 'error');
+                return;
+            }
+            
+            try {
+                addLog(userId, `Logging in as ${username}...`, 'info');
+                updateStatus(userId, 'connecting');
+                
+                const response = await fetch(AUTH_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Login failed with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const token = data.token || data.access_token;
+                
+                if (!token) {
+                    throw new Error('No token received');
+                }
+                
+                users[userId].username = username;
+                users[userId].token = token;
+                
+                addLog(userId, `Login successful. Token: ${token.substring(0, 10)}...`, 'info');
+                
+                // Show/hide relevant UI elements
+                elements[userId].loginBtn.style.display = 'none';
+                elements[userId].disconnectBtn.style.display = 'inline-block';
+                elements[userId].loginSection.style.display = 'none';
+                elements[userId].chatSection.style.display = 'block';
+                
+                // Connect WebSocket
+                connectWebSocket(userId);
+                
+            } catch (error) {
+                addLog(userId, `Login error: ${error.message}`, 'error');
+                updateStatus(userId, 'disconnected');
+            }
+        }
+        
+        function connectWebSocket(userId) {
+            if (!users[userId].token) {
+                addLog(userId, 'No auth token available', 'error');
+                return;
+            }
+            
+            try {
+                addLog(userId, 'Connecting WebSocket...', 'info');
+                updateStatus(userId, 'connecting');
+                
+                const socket = new SockJS('/ws');
+                users[userId].stompClient = Stomp.over(socket);
+                
+                // Debug
+                users[userId].stompClient.debug = function(str) {
+                    // Filter out heartbeat messages
+                    if (str.indexOf("PING") !== 0 && str.indexOf("PONG") !== 0) {
+                        addLog(userId, str, 'debug');
+                    }
+                };
+                
+                const headers = {
+                    'Authorization': 'Bearer ' + users[userId].token
+                };
+                
+                users[userId].stompClient.connect(
+                    headers,
+                    () => onConnected(userId),
+                    error => onError(userId, error)
+                );
+            } catch (error) {
+                addLog(userId, `WebSocket connection error: ${error.message}`, 'error');
+                updateStatus(userId, 'disconnected');
+            }
+        }
+        
+        function onConnected(userId) {
+            users[userId].connected = true;
+            updateStatus(userId, 'connected');
+            addLog(userId, 'Connected to WebSocket', 'info');
+            
+            // Subscribe to public topic
+            subscribeToTopic(userId, '/topic/public');
+            
+            // Tell server we joined
+            users[userId].stompClient.send(
+                "/app/chat.addUser",
+                {},
+                JSON.stringify({
+                    sender: users[userId].username,
+                    type: 'JOIN'
+                })
+            );
+            
+            addSystemMessage(userId, 'Connected to chat server');
+        }
+        
+        function onError(userId, error) {
+            users[userId].connected = false;
+            updateStatus(userId, 'disconnected');
+            addLog(userId, `WebSocket error: ${error}`, 'error');
+            addSystemMessage(userId, 'Connection error. Please try again.');
+        }
+        
+        function disconnect(userId) {
+            if (users[userId].stompClient) {
+                users[userId].stompClient.disconnect();
+                users[userId].stompClient = null;
+            }
+            
+            users[userId].connected = false;
+            users[userId].token = '';
+            users[userId].subscriptions = {};
+            users[userId].conversationId = '';
+            
+            updateStatus(userId, 'disconnected');
+            addLog(userId, 'Disconnected from WebSocket', 'info');
+            
+            // Reset UI
+            elements[userId].loginBtn.style.display = 'inline-block';
+            elements[userId].disconnectBtn.style.display = 'none';
+            elements[userId].loginSection.style.display = 'block';
+            elements[userId].chatSection.style.display = 'none';
+            elements[userId].chat.innerHTML = '';
+            elements[userId].conversationIdInput.value = '';
+            elements[userId].sendBtn.disabled = true;
+        }
+        
+        function subscribeToTopic(userId, topic) {
+            if (!users[userId].stompClient || !users[userId].connected) {
+                addLog(userId, 'Not connected to WebSocket', 'error');
+                return null;
+            }
+            
+            if (users[userId].subscriptions[topic]) {
+                addLog(userId, `Already subscribed to ${topic}`, 'info');
+                return users[userId].subscriptions[topic];
+            }
+            
+            try {
+                addLog(userId, `Subscribing to ${topic}`, 'info');
+                
+                const subscription = users[userId].stompClient.subscribe(topic, message => {
+                    try {
+                        const body = JSON.parse(message.body);
+                        addLog(userId, `Received from ${topic}: ${JSON.stringify(body)}`, 'info');
+                        
+                        // Handle different message types
+                        if (body.type === 'JOIN' || body.type === 'LEAVE') {
+                            // Handle join/leave messages
+                            addSystemMessage(userId, body.content || `${body.sender} ${body.type.toLowerCase()}ed`);
+                        } else if (body.type === 'PRIVATE' || body.type === 'CHAT') {
+                            if (topic.startsWith('/topic/conversations/')) {
+                                // Handle private conversation messages
+                                const isOurMessage = body.sender === users[userId].username;
+                                addChatMessage(userId, body.content, isOurMessage, body.sender, body.timestamp);
+                            }
+                        }
+                    } catch (e) {
+                        addLog(userId, `Error parsing message: ${e.message}`, 'error');
+                    }
+                });
+                
+                users[userId].subscriptions[topic] = subscription;
+                return subscription;
+            } catch (error) {
+                addLog(userId, `Subscription error: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function startChat(userId) {
+            const recipient = elements[userId].recipientInput.value.trim();
+            
+            if (!recipient) {
+                addLog(userId, 'Please enter a recipient', 'error');
+                return;
+            }
+            
+            if (recipient === users[userId].username) {
+                addLog(userId, "You can't chat with yourself", 'error');
+                return;
+            }
+            
+            try {
+                addLog(userId, `Starting chat with ${recipient}...`, 'info');
+                
+                // Create or get conversation
+                const response = await fetch(`${CHAT_SERVICE_URL}/conversations/direct`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${users[userId].token}`
+                    },
+                    body: JSON.stringify({
+                        recipientId: recipient
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to create conversation: ${response.status}`);
+                }
+                
+                const conversation = await response.json();
+                const conversationId = conversation.id;
+                
+                addLog(userId, `Conversation created/retrieved: ${conversationId}`, 'info');
+                
+                // Store conversation ID
+                users[userId].conversationId = conversationId;
+                elements[userId].conversationIdInput.value = conversationId;
+                
+                // Add username display to chat
+                elements[userId].chat.innerHTML = '';
+                const usernameContainer = document.createElement('div');
+                usernameContainer.className = 'username-container';
+                usernameContainer.textContent = `Chat with ${recipient}`;
+                elements[userId].chat.appendChild(usernameContainer);
+                
+                // Subscribe to conversation topic
+                subscribeToTopic(userId, `/topic/conversations/${conversationId}`);
+                
+                // Load previous messages
+                const messagesResponse = await fetch(`${CHAT_SERVICE_URL}/conversations/${conversationId}/messages`, {
+                    headers: {
+                        'Authorization': `Bearer ${users[userId].token}`
+                    }
+                });
+                
+                if (messagesResponse.ok) {
+                    const messagesData = await messagesResponse.json();
+                    
+                    // Clear chat
+                    elements[userId].chat.innerHTML = '';
+                    const usernameContainer = document.createElement('div');
+                    usernameContainer.className = 'username-container';
+                    usernameContainer.textContent = `Chat with ${recipient}`;
+                    elements[userId].chat.appendChild(usernameContainer);
+                    
+                    if (messagesData.content && messagesData.content.length > 0) {
+                        // Display messages
+                        messagesData.content.forEach(msg => {
+                            const isOurMessage = msg.senderId === users[userId].username;
+                            addChatMessage(userId, msg.content, isOurMessage, msg.senderId, new Date(msg.sentAt).toLocaleTimeString());
+                        });
+                    } else {
+                        addSystemMessage(userId, 'No previous messages');
+                    }
+                }
+                
+                // Enable send button
+                elements[userId].sendBtn.disabled = false;
+                
+            } catch (error) {
+                addLog(userId, `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function sendMessage(userId) {
+            const content = elements[userId].messageInput.value.trim();
+            const conversationId = elements[userId].conversationIdInput.value;
+            const recipient = elements[userId].recipientInput.value.trim();
+            
+            if (!content) {
+                return;
+            }
+            
+            if (!users[userId].stompClient || !users[userId].connected) {
+                addLog(userId, 'Not connected to WebSocket', 'error');
+                return;
+            }
+            
+            if (!conversationId) {
+                addLog(userId, 'No active conversation', 'error');
+                return;
+            }
+            
+            try {
+                addLog(userId, `Sending message: ${content}`, 'info');
+                
+                const message = {
+                    sender: users[userId].username,
+                    recipient: recipient,
+                    content: content,
+                    type: 'PRIVATE'
+                };
+                
+                // Send via WebSocket
+                users[userId].stompClient.send('/app/chat.private', {}, JSON.stringify(message));
+                
+                // Clear input
+                elements[userId].messageInput.value = '';
+                
+            } catch (error) {
+                addLog(userId, `Error sending message: ${error.message}`, 'error');
+            }
+        }
+        
+        // UI Helpers
+        function updateStatus(userId, status) {
+            elements[userId].status.className = `websocket-status ${status}`;
+        }
+        
+        function addLog(userId, message, type = 'info') {
+            const log = elements[userId].log;
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function addSystemMessage(userId, message) {
+            const chat = elements[userId].chat;
+            const messageElement = document.createElement('div');
+            messageElement.className = 'system-message';
+            messageElement.textContent = message;
+            
+            chat.appendChild(messageElement);
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        function addChatMessage(userId, content, isSender, sender, timestamp) {
+            const chat = elements[userId].chat;
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${isSender ? 'sender' : 'receiver'}`;
+            
+            if (!isSender) {
+                const senderElement = document.createElement('div');
+                senderElement.className = 'message-sender';
+                senderElement.textContent = sender;
+                senderElement.style.fontSize = '0.8em';
+                senderElement.style.opacity = '0.7';
+                messageElement.appendChild(senderElement);
+            }
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = content;
+            messageElement.appendChild(contentElement);
+            
+            const timestampElement = document.createElement('div');
+            timestampElement.className = 'message-timestamp';
+            timestampElement.textContent = timestamp;
+            timestampElement.style.fontSize = '0.7em';
+            timestampElement.style.opacity = '0.7';
+            timestampElement.style.textAlign = isSender ? 'right' : 'left';
+            messageElement.appendChild(timestampElement);
+            
+            chat.appendChild(messageElement);
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html> 

@@ -85,8 +85,13 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
       - SERVER_PORT=8084
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/authdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=authuser
+      - SPRING_DATASOURCE_PASSWORD=authpassword
     depends_on:
       service-registry:
+        condition: service_healthy
+      mysql:
         condition: service_healthy
     networks:
       - microservices-network

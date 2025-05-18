@@ -12,10 +12,13 @@ public class ChatMessage {
     private String content;
     private String timestamp;
     private MessageType type;
+    private String conversationId;
+    private String recipient; // For direct messaging
 
     public enum MessageType {
         CHAT,
         JOIN,
-        LEAVE
+        LEAVE,
+        PRIVATE
     }
 } 

@@ -39,23 +39,63 @@
             border-radius: 5px;
             margin-bottom: 15px;
         }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .nav-tabs {
+            margin-bottom: 15px;
+        }
+        #privateTab {
+            display: none;
+        }
+        #privateMessages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .private-chat-message .message-content {
+            background-color: #dcf8c6; /* Green for sent messages */
+            padding: 8px 12px;
+            border-radius: 12px;
+        }
+        .private-chat-received .message-content {
+            background-color: #f1f0f0; /* Gray for received messages */
+            padding: 8px 12px;
+            border-radius: 12px;
+        }
+        .private-message-form {
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="username-page" class="row justify-content-center">
+        <div id="login-page" class="row justify-content-center">
             <div class="col-md-6 mt-5">
                 <div class="card">
                     <div class="card-header">
-                        <h2>Enter Your Username</h2>
+                        <h2>Login to Chat</h2>
                     </div>
                     <div class="card-body">
-                        <form id="usernameForm">
+                        <div id="loading-auth" class="loading d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <p>Getting authentication endpoints...</p>
+                        </div>
+                        <form id="loginForm">
                             <div class="form-group">
-                                <input type="text" id="name" class="form-control" placeholder="Username" autocomplete="off" />
+                                <input type="text" id="username" class="form-control" placeholder="Username" autocomplete="off" />
                             </div>
                             <div class="form-group">
-                                <button type="submit" class="btn btn-primary btn-block">Start Chatting</button>
+                                <input type="password" id="password" class="form-control" placeholder="Password" autocomplete="off" />
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary btn-block">Login</button>
                             </div>
                         </form>
                     </div>
@@ -66,60 +106,194 @@
         <div id="chat-page" class="chat-container">
             <div class="chat-header">
                 <h2>Spring Boot WebSocket Chat Demo</h2>
+                <button id="logoutBtn" class="btn btn-sm btn-danger float-right">Logout</button>
             </div>
-            <div class="message-list" id="messageArea"></div>
-            <form id="messageForm">
-                <div class="form-group">
-                    <div class="input-group">
-                        <input type="text" id="message" class="form-control" placeholder="Type a message..."/>
-                        <div class="input-group-append">
-                            <button type="submit" class="btn btn-primary">Send</button>
+            
+            <ul class="nav nav-tabs" id="chatTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="public-tab" data-toggle="tab" href="#publicTab" role="tab">
+                        Public Chat
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="private-tab" data-toggle="tab" href="#privateTab" role="tab">
+                        Private Chat
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="publicTab" role="tabpanel">
+                    <div class="message-list" id="messageArea"></div>
+                    <form id="messageForm">
+                        <div class="form-group">
+                            <div class="input-group">
+                                <input type="text" id="message" class="form-control" placeholder="Type a message..."/>
+                                <div class="input-group-append">
+                                    <button type="submit" class="btn btn-primary">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="tab-pane fade" id="privateTab" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <form id="newPrivateChatForm" class="mb-3">
+                                <div class="form-group">
+                                    <label for="recipientInput">Chat with user:</label>
+                                    <div class="input-group">
+                                        <input type="text" id="recipientInput" class="form-control" placeholder="Enter username"/>
+                                        <div class="input-group-append">
+                                            <button type="submit" class="btn btn-success">Start Chat</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                            
+                            <div id="privateMessages"></div>
+                            
+                            <form id="privateMessageForm" class="private-message-form">
+                                <div class="form-group">
+                                    <div class="input-group">
+                                        <input type="text" id="privateMessage" class="form-control" placeholder="Type a private message..."/>
+                                        <input type="hidden" id="currentRecipient" />
+                                        <div class="input-group-append">
+                                            <button type="submit" class="btn btn-primary">Send</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script>
-        const usernamePage = document.getElementById('username-page');
+        const loginPage = document.getElementById('login-page');
         const chatPage = document.getElementById('chat-page');
-        const usernameForm = document.getElementById('usernameForm');
+        const loginForm = document.getElementById('loginForm');
         const messageForm = document.getElementById('messageForm');
+        const privateMessageForm = document.getElementById('privateMessageForm');
+        const newPrivateChatForm = document.getElementById('newPrivateChatForm');
         const messageInput = document.getElementById('message');
+        const privateMessageInput = document.getElementById('privateMessage');
+        const recipientInput = document.getElementById('recipientInput');
+        const currentRecipientInput = document.getElementById('currentRecipient');
         const messageArea = document.getElementById('messageArea');
+        const privateMessagesArea = document.getElementById('privateMessages');
         const connectingElement = document.createElement('div');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const loadingAuth = document.getElementById('loading-auth');
 
         let stompClient = null;
         let username = null;
+        let jwtToken = null;
+        let activeConversations = new Map(); // To store active conversation IDs by recipient
+        let conversationMessages = new Map(); // To store conversation messages by conversation ID
 
-        function connect(event) {
-            if (event) {
-                event.preventDefault();
+        // API Gateway authentication endpoint
+        const AUTH_ENDPOINT = 'http://localhost:8080/api/auth/authenticate';
+
+        loginForm.addEventListener('submit', login, true);
+        messageForm.addEventListener('submit', sendMessage, true);
+        logoutBtn.addEventListener('click', logout, true);
+        privateMessageForm.addEventListener('submit', sendPrivateMessage, true);
+        newPrivateChatForm.addEventListener('submit', startPrivateChat, true);
+
+        function login(event) {
+            event.preventDefault();
+            
+            const usernameValue = document.getElementById('username').value.trim();
+            const passwordValue = document.getElementById('password').value.trim();
+            
+            if (usernameValue && passwordValue) {
+                // Authenticate with API Gateway
+                console.log('Attempting authentication with API Gateway');
+                fetch(AUTH_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: usernameValue,
+                        password: passwordValue
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Authentication failed with status ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Store JWT token
+                    jwtToken = data.token || data.access_token;
+                    username = usernameValue;
+                    
+                    if (!jwtToken) {
+                        throw new Error('No token received from authentication service');
+                    }
+                    
+                    console.log('Authentication successful');
+                    
+                    // Save to local storage
+                    localStorage.setItem('jwt_token', jwtToken);
+                    localStorage.setItem('username', username);
+                    
+                    // Connect to WebSocket using the token
+                    connectWebSocket();
+                })
+                .catch(error => {
+                    console.error('Login error:', error);
+                    alert('Login failed. Please check your credentials.');
+                });
+            }
+        }
+        
+        function connectWebSocket() {
+            if (!jwtToken) {
+                // Try to get token from storage
+                jwtToken = localStorage.getItem('jwt_token');
+                username = localStorage.getItem('username');
+                
+                if (!jwtToken || !username) {
+                    console.error('No token found');
+                    return;
+                }
             }
             
-            username = document.getElementById('name').value.trim();
+            loginPage.style.display = 'none';
+            chatPage.style.display = 'block';
             
-            if (username) {
-                usernamePage.style.display = 'none';
-                chatPage.style.display = 'block';
-                
-                connectingElement.classList.add('connecting');
-                connectingElement.textContent = 'Connecting...';
-                messageArea.appendChild(connectingElement);
+            connectingElement.classList.add('connecting');
+            connectingElement.textContent = 'Connecting...';
+            messageArea.appendChild(connectingElement);
 
-                const socket = new SockJS('/ws');
-                stompClient = Stomp.over(socket);
-                
-                stompClient.connect({}, onConnected, onError);
-            }
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            
+            // Add JWT token in headers for authentication
+            const headers = {
+                'Authorization': 'Bearer ' + jwtToken
+            };
+            
+            stompClient.connect(headers, onConnected, onError);
         }
 
         function onConnected() {
             // Subscribe to the Public Topic
             stompClient.subscribe('/topic/public', onMessageReceived);
+            
+            // Subscribe to private user queue for errors
+            stompClient.subscribe('/user/queue/errors', onErrorReceived);
 
             // Tell your username to the server
             stompClient.send("/app/chat.addUser",
@@ -127,12 +301,78 @@
                 JSON.stringify({sender: username, type: 'JOIN'})
             );
             
+            // Fetch and subscribe to all user conversations
+            fetchUserConversations();
+            
             connectingElement.remove();
+            
+            // Show private tab since we're connected
+            document.getElementById('privateTab').style.display = 'block';
+        }
+
+        // Fetch all user conversations and subscribe to them
+        function fetchUserConversations() {
+            // Use JWT token for authentication
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + jwtToken
+            };
+            
+            console.log('Fetching user conversations...');
+            fetch('/api/chat/conversations', {
+                method: 'GET',
+                headers: headers
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch conversations');
+                }
+                return response.json();
+            })
+            .then(conversations => {
+                console.log('Fetched conversations:', conversations);
+                
+                // Subscribe to each conversation
+                if (Array.isArray(conversations)) {
+                    conversations.forEach(conversation => {
+                        console.log('Processing conversation:', conversation);
+                        
+                        // Store conversation in active conversations map
+                        const participants = conversation.participants || [];
+                        // The other participant is any participant that isn't the current user
+                        const otherParticipant = participants.find(p => p.id !== username);
+                        
+                        if (otherParticipant) {
+                            console.log(`Found conversation with ${otherParticipant.id}, ID: ${conversation.id}`);
+                            activeConversations.set(otherParticipant.id, conversation.id);
+                        }
+                        
+                        // Always subscribe to the conversation topic
+                        console.log(`Subscribing to conversation ${conversation.id}`);
+                        subscribeToConversation(conversation.id);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching conversations:', error);
+            });
         }
 
         function onError(error) {
-            connectingElement.textContent = 'Could not connect to WebSocket server. Please refresh the page and try again!';
+            connectingElement.textContent = 'Connection failed. Please check your authentication or refresh the page.';
             connectingElement.style.color = 'red';
+            console.error('WebSocket error:', error);
+            
+            // If it's an authentication error, return to login page
+            setTimeout(() => {
+                logout();
+            }, 3000);
+        }
+        
+        function onErrorReceived(payload) {
+            const error = JSON.parse(payload.body);
+            console.error('Error received:', error);
+            alert('Error: ' + error.error + '\n' + error.reason);
         }
 
         function sendMessage(event) {
@@ -151,10 +391,236 @@
                 messageInput.value = '';
             }
         }
+        
+        function startPrivateChat(event) {
+            event.preventDefault();
+            
+            const recipient = recipientInput.value.trim();
+            
+            if (recipient && recipient !== username) {
+                // Set the current recipient
+                currentRecipientInput.value = recipient;
+                
+                // Clear previous messages
+                privateMessagesArea.innerHTML = '';
+                
+                // Add header
+                const headerElement = document.createElement('div');
+                headerElement.classList.add('chat-header', 'mb-3');
+                headerElement.innerHTML = `<h5>Chat with ${recipient}</h5>`;
+                privateMessagesArea.appendChild(headerElement);
+                
+                // Check if we already have a conversation with this user
+                if (!activeConversations.has(recipient)) {
+                    // We need to create a new conversation or fetch existing one
+                    // For now, we'll just set a placeholder and let the first message create it
+                    console.log(`Starting new chat with ${recipient}`);
+                }
+                
+                // Switch to private tab
+                document.querySelector('#private-tab').click();
+                
+                recipientInput.value = '';
+            } else if (recipient === username) {
+                alert("You can't chat with yourself!");
+            } else {
+                alert("Please enter a valid recipient username");
+            }
+        }
+        
+        function sendPrivateMessage(event) {
+            event.preventDefault();
+            
+            const messageContent = privateMessageInput.value.trim();
+            const recipient = currentRecipientInput.value.trim();
+            
+            if (messageContent && stompClient && recipient) {
+                const chatMessage = {
+                    sender: username,
+                    recipient: recipient,
+                    content: messageContent,
+                    type: 'PRIVATE'
+                };
+                
+                console.log('Sending private message:', chatMessage);
+                stompClient.send("/app/chat.private", {}, JSON.stringify(chatMessage));
+                
+                // Don't add the message to UI here - we'll display it when it comes back via WebSocket
+                // This prevents duplicate messages
+                
+                privateMessageInput.value = '';
+            }
+        }
+        
+        function subscribeToConversation(conversationId) {
+            if (!conversationId) {
+                console.error('Cannot subscribe to conversation: missing conversationId');
+                return;
+            }
+            
+            // Subscribe to this conversation if not already subscribed
+            if (!conversationMessages.has(conversationId)) {
+                console.log(`Creating new subscription for conversation ${conversationId}`);
+                conversationMessages.set(conversationId, []);
+                
+                try {
+                    console.log(`Subscribing to topic: /topic/conversations/${conversationId}`);
+                    const subscription = stompClient.subscribe('/topic/conversations/' + conversationId, message => {
+                        try {
+                            const chatMessage = JSON.parse(message.body);
+                            console.log(`Received message in conversation ${conversationId}:`, chatMessage);
+                            
+                            // Store message in conversation history
+                            if (!conversationMessages.has(conversationId)) {
+                                console.warn(`Conversation ${conversationId} no longer exists in map, recreating`);
+                                conversationMessages.set(conversationId, []);
+                            }
+                            conversationMessages.get(conversationId).push(chatMessage);
+                            
+                            // Check if this message belongs to our current active chat
+                            const currentRecipient = currentRecipientInput.value;
+                            
+                            if (chatMessage.type === 'PRIVATE') {
+                                // For private messages, check if we're involved in the conversation
+                                const isOurMessage = chatMessage.sender === username || chatMessage.recipient === username;
+                                
+                                // Check if this is for the current active chat
+                                const isCurrentChat = currentRecipient && 
+                                    (chatMessage.sender === currentRecipient || chatMessage.recipient === currentRecipient);
+                                
+                                if (isOurMessage) {
+                                    console.log(`This message is for us (${username})`);
+                                    // Update the active conversations map
+                                    const otherUser = chatMessage.sender === username ? chatMessage.recipient : chatMessage.sender;
+                                    activeConversations.set(otherUser, conversationId);
+                                    console.log(`Updated active conversation mapping: ${otherUser} -> ${conversationId}`);
+                                    
+                                    // Display the message if we're in the right chat window
+                                    if (isCurrentChat) {
+                                        console.log('Showing private message in UI:', chatMessage);
+                                        addPrivateMessageToUI(chatMessage, chatMessage.sender === username);
+                                    } else {
+                                        console.log(`Message not for current chat window (${currentRecipient}), but for ${otherUser}`);
+                                        // Here you could implement a notification for messages in other conversations
+                                    }
+                                } else {
+                                    console.log(`Message not intended for this user (${username})`);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Error processing message:', err, message.body);
+                        }
+                    });
+                    
+                    console.log(`Successfully subscribed to conversation ${conversationId}`);
+                } catch (error) {
+                    console.error(`Error subscribing to conversation ${conversationId}:`, error);
+                }
+            } else {
+                console.log(`Already subscribed to conversation ${conversationId}`);
+            }
+        }
+        
+        function addPrivateMessageToUI(message, isSender) {
+            console.log('Adding message to UI:', message, 'isSender:', isSender);
+            
+            // Create message element
+            const messageElement = document.createElement('div');
+            messageElement.classList.add(isSender ? 'private-chat-message' : 'private-chat-received');
+            messageElement.classList.add('mb-2');
+            messageElement.dataset.id = message.id || new Date().getTime(); // Add data-id to prevent duplicates
+            
+            // Check if this message already exists in the UI to prevent duplicates
+            const existingMessage = document.querySelector(`.mb-2[data-id="${messageElement.dataset.id}"]`);
+            if (existingMessage) {
+                console.log('Message already exists in UI, not adding duplicate');
+                return;
+            }
+            
+            // Add sender name for received messages
+            if (!isSender) {
+                const senderElement = document.createElement('div');
+                senderElement.classList.add('font-weight-bold');
+                senderElement.textContent = message.sender;
+                messageElement.appendChild(senderElement);
+            }
+            
+            // Add message content
+            const contentContainer = document.createElement('div');
+            contentContainer.classList.add('d-flex', isSender ? 'justify-content-end' : 'justify-content-start');
+            
+            const textElement = document.createElement('span');
+            textElement.classList.add('message-content');
+            textElement.textContent = message.content;
+            
+            contentContainer.appendChild(textElement);
+            messageElement.appendChild(contentContainer);
+            
+            // Add timestamp
+            const timestampElement = document.createElement('small');
+            timestampElement.classList.add('text-muted', 'd-block', isSender ? 'text-right' : 'text-left');
+            timestampElement.textContent = message.timestamp;
+            
+            messageElement.appendChild(timestampElement);
+            
+            // Add to UI and scroll to bottom
+            privateMessagesArea.appendChild(messageElement);
+            privateMessagesArea.scrollTop = privateMessagesArea.scrollHeight;
+        }
+        
+        function logout() {
+            if (stompClient) {
+                stompClient.disconnect();
+            }
+            
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('username');
+            
+            chatPage.style.display = 'none';
+            loginPage.style.display = 'block';
+            
+            username = null;
+            jwtToken = null;
+            
+            // Clear message areas
+            messageArea.innerHTML = '';
+            privateMessagesArea.innerHTML = '';
+            
+            // Reset conversation tracking
+            activeConversations = new Map();
+            conversationMessages = new Map();
+        }
 
         function onMessageReceived(payload) {
             const message = JSON.parse(payload.body);
+            console.log('onMessageReceived:', message);
             
+            // If this is a message for a conversation, handle subscriptions
+            if (message.conversationId) {
+                console.log(`Message received with conversationId: ${message.conversationId}`);
+                
+                // Always ensure we're subscribed to this conversation
+                subscribeToConversation(message.conversationId);
+                
+                // If this is a direct message, associate the conversation with the sender/recipient
+                if (message.type === 'PRIVATE') {
+                    // Check if we're involved in the conversation
+                    const isRelevantToUs = message.sender === username || message.recipient === username;
+                    
+                    if (isRelevantToUs) {
+                        const otherUser = message.sender === username ? message.recipient : message.sender;
+                        if (otherUser) {
+                            activeConversations.set(otherUser, message.conversationId);
+                            console.log(`Associated conversation ${message.conversationId} with user ${otherUser}`);
+                        }
+                    }
+                    
+                    // Don't show private messages in public chat
+                    return;
+                }
+            }
+            
+            // This is for public messages
             const messageElement = document.createElement('div');
             
             if (message.type === 'JOIN') {
@@ -215,8 +681,15 @@
             return colors[index];
         }
 
-        usernameForm.addEventListener('submit', connect, true);
-        messageForm.addEventListener('submit', sendMessage, true);
+        // Check if token exists in local storage for auto-login
+        window.onload = function() {
+            const storedToken = localStorage.getItem('jwt_token');
+            if (storedToken) {
+                jwtToken = storedToken;
+                username = localStorage.getItem('username');
+                connectWebSocket();
+            }
+        };
     </script>
 </body>
 </html> 

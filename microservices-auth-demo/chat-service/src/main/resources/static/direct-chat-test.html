@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>1-1 Chat Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f8f9fa;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            height: 300px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 75%;
+            position: relative;
+        }
+        .message.received {
+            background-color: #e9ecef;
+            align-self: flex-start;
+            margin-right: auto;
+        }
+        .message.sent {
+            background-color: #0d6efd;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .message-form {
+            display: flex;
+            margin-top: auto;
+        }
+        .message-input {
+            flex: 1;
+            margin-right: 10px;
+            border-radius: 20px;
+            padding: 8px 15px;
+        }
+        .send-button {
+            border-radius: 20px;
+        }
+        .login-panel {
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .login-form {
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .message-timestamp {
+            font-size: 0.7rem;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+        .conversation-list {
+            margin-bottom: 15px;
+        }
+        .conversation-item {
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        .conversation-item:hover {
+            background-color: #f0f0f0;
+        }
+        .explanation {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .step {
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+        .step-number {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        code {
+            background-color: #f1f1f1;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .connected {
+            background-color: green;
+        }
+        .disconnected {
+            background-color: red;
+        }
+        .connecting {
+            background-color: orange;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="text-center my-3">1-1 Chat Implementation Demo <small>(WebSocket Version)</small></h1>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="explanation">
+                    <h2>How 1-1 Chat Works with WebSockets</h2>
+                    <p>This demonstration shows how 1-1 chat works in our microservices architecture using WebSockets for real-time communication. Below is a step-by-step explanation:</p>
+                    
+                    <h4>Core Components:</h4>
+                    <div class="step">
+                        <span class="step-number">1.</span> <strong>Data Models:</strong>
+                        <ul>
+                            <li><code>Conversation</code>: Represents a chat conversation (direct or group)</li>
+                            <li><code>DirectConversation</code>: A 1-1 conversation between two users</li>
+                            <li><code>Message</code>: Individual messages within conversations</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">2.</span> <strong>Authentication Flow:</strong>
+                        <ul>
+                            <li>Users authenticate with the auth-service to get a JWT token</li>
+                            <li>The JWT token contains the user's identity and roles</li>
+                            <li>This token is sent with every request to the chat-service</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">3.</span> <strong>WebSocket Connection:</strong>
+                        <ul>
+                            <li>Each user establishes a WebSocket connection to the server</li>
+                            <li>The connection is authenticated using the JWT token</li>
+                            <li>Users subscribe to their personal message channel</li>
+                            <li>Users also subscribe to specific conversation channels</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">4.</span> <strong>Sending Messages:</strong>
+                        <ul>
+                            <li>User A sends a message via WebSocket to a conversation</li>
+                            <li>The server validates user access to the conversation</li>
+                            <li>The message is stored in the database</li>
+                            <li>The server broadcasts the message to all participants' WebSocket connections</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">5.</span> <strong>Receiving Messages:</strong>
+                        <ul>
+                            <li>The WebSocket connection receives new messages instantly</li>
+                            <li>No polling is needed as the server pushes updates in real-time</li>
+                            <li>Messages appear immediately for all connected participants</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <span class="step-number">6.</span> <strong>Data Access Control:</strong>
+                        <ul>
+                            <li>Users can only access conversations they are participants in</li>
+                            <li>Users can only subscribe to their authorized topics</li>
+                            <li>The server enforces security at both REST and WebSocket layers</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loginContainer" class="row">
+            <div class="col-md-6">
+                <div class="login-panel">
+                    <h3>Login as Linh</h3>
+                    <div class="login-form">
+                        <input type="text" id="username1" value="linh" class="form-control mb-2" readonly>
+                        <input type="password" id="password1" value="1234" class="form-control mb-2" readonly>
+                        <button id="loginButton1" class="btn btn-primary w-100">Login as Linh</button>
+                    </div>
+                    <div id="tokenInfo1" class="mt-3 text-start"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="login-panel">
+                    <h3>Login as Thai</h3>
+                    <div class="login-form">
+                        <input type="text" id="username2" value="thai" class="form-control mb-2" readonly>
+                        <input type="password" id="password2" value="1234" class="form-control mb-2" readonly>
+                        <button id="loginButton2" class="btn btn-primary w-100">Login as Thai</button>
+                    </div>
+                    <div id="tokenInfo2" class="mt-3 text-start"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chatContainer" style="display: none;" class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span id="connectionStatus1" class="connection-status disconnected"></span>
+                        <h3 id="userHeader1">Linh's Chat</h3>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="explanation">
+                            <h5>WebSocket Communication Flow:</h5>
+                            <ol>
+                                <li>Client establishes a WebSocket connection to <code>/ws</code> endpoint</li>
+                                <li>Client subscribes to public topic (<code>/topic/public</code>)</li>
+                                <li>Client subscribes to private conversation (<code>/topic/conversations/{conversationId}</code>)</li>
+                                <li>When sending a message, client sends to <code>/app/chat.sendMessage</code></li>
+                                <li>Server processes the message and broadcasts to relevant topics</li>
+                                <li>All subscribed clients receive the message instantly</li>
+                            </ol>
+                        </div>
+                        <div id="conversationList1" class="conversation-list"></div>
+                        <div id="messagesContainer1" class="messages-container d-flex flex-column"></div>
+                        <div class="message-form">
+                            <input type="text" id="messageInput1" class="form-control message-input" placeholder="Type a message...">
+                            <button id="sendButton1" class="btn btn-primary send-button">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span id="connectionStatus2" class="connection-status disconnected"></span>
+                        <h3 id="userHeader2">Thai's Chat</h3>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="explanation">
+                            <h5>Advantages of WebSockets:</h5>
+                            <ul>
+                                <li><strong>Real-time updates</strong>: Messages appear instantly</li>
+                                <li><strong>Efficient</strong>: Single persistent connection instead of repeated HTTP requests</li>
+                                <li><strong>Lower latency</strong>: No polling delay, messages delivered immediately</li>
+                                <li><strong>Reduced server load</strong>: Less overhead compared to polling</li>
+                                <li><strong>Battery-friendly</strong>: More efficient for mobile devices</li>
+                            </ul>
+                        </div>
+                        <div id="conversationList2" class="conversation-list"></div>
+                        <div id="messagesContainer2" class="messages-container d-flex flex-column"></div>
+                        <div class="message-form">
+                            <input type="text" id="messageInput2" class="form-control message-input" placeholder="Type a message...">
+                            <button id="sendButton2" class="btn btn-primary send-button">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // API URLs
+        const AUTH_URL = 'http://localhost:8081/api/auth/authenticate';
+        const CHAT_SERVICE_URL = 'http://localhost:8084/api/chat';
+        const WS_URL = 'http://localhost:8084/ws';
+        
+        // User tokens
+        let userTokens = {
+            linh: null,
+            thai: null
+        };
+        
+        // WebSocket connections
+        let stompClients = {
+            linh: null,
+            thai: null
+        };
+        
+        // Current conversation
+        let currentConversationId = null;
+        
+        // User 1 (Linh) login
+        document.getElementById('loginButton1').addEventListener('click', async () => {
+            const username = document.getElementById('username1').value;
+            const password = document.getElementById('password1').value;
+            
+            try {
+                const response = await fetch(AUTH_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                userTokens.linh = data.token;
+                
+                document.getElementById('tokenInfo1').innerHTML = `
+                    <div class="alert alert-success">Login successful!</div>
+                    <small>Token: ${data.token.substring(0, 20)}...</small>
+                `;
+                
+                checkBothLoggedIn();
+            } catch (error) {
+                document.getElementById('tokenInfo1').innerHTML = `
+                    <div class="alert alert-danger">Login failed: ${error.message}</div>
+                `;
+            }
+        });
+        
+        // User 2 (Thai) login
+        document.getElementById('loginButton2').addEventListener('click', async () => {
+            const username = document.getElementById('username2').value;
+            const password = document.getElementById('password2').value;
+            
+            try {
+                const response = await fetch(AUTH_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                userTokens.thai = data.token;
+                
+                document.getElementById('tokenInfo2').innerHTML = `
+                    <div class="alert alert-success">Login successful!</div>
+                    <small>Token: ${data.token.substring(0, 20)}...</small>
+                `;
+                
+                checkBothLoggedIn();
+            } catch (error) {
+                document.getElementById('tokenInfo2').innerHTML = `
+                    <div class="alert alert-danger">Login failed: ${error.message}</div>
+                `;
+            }
+        });
+        
+        // Check if both users are logged in
+        function checkBothLoggedIn() {
+            if (userTokens.linh && userTokens.thai) {
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('chatContainer').style.display = 'block';
+                
+                // Initialize chat
+                initializeChat();
+            }
+        }
+        
+        // Initialize chat functionality
+        async function initializeChat() {
+            // Create direct conversation between linh and thai if it doesn't exist
+            try {
+                // Create conversation from Linh's side
+                const createConvResponse = await fetch(`${CHAT_SERVICE_URL}/conversations/direct`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userTokens.linh}`
+                    },
+                    body: JSON.stringify({
+                        recipientId: 'thai'
+                    })
+                });
+                
+                const conversation = await createConvResponse.json();
+                currentConversationId = conversation.id;
+                
+                // Update conversation lists
+                await updateConversationLists();
+                
+                // Connect WebSockets for both users
+                connectWebSocket('linh');
+                connectWebSocket('thai');
+                
+                // Initial load of messages
+                await loadMessages(currentConversationId);
+                
+                // Setup message sending
+                setupMessageSending();
+            } catch (error) {
+                console.error('Error initializing chat:', error);
+                alert('Failed to initialize chat. Please check console for details.');
+            }
+        }
+        
+        // Connect to WebSocket
+        function connectWebSocket(user) {
+            updateConnectionStatus(user, 'connecting');
+            
+            const socket = new SockJS(WS_URL);
+            stompClients[user] = Stomp.over(socket);
+            
+            // Disable debug messages
+            stompClients[user].debug = null;
+            
+            stompClients[user].connect({}, frame => {
+                console.log(`${user} connected to WebSocket: ${frame}`);
+                updateConnectionStatus(user, 'connected');
+                
+                // Subscribe to public topic
+                stompClients[user].subscribe('/topic/public', message => {
+                    const messageData = JSON.parse(message.body);
+                    console.log(`${user} received public message:`, messageData);
+                    
+                    // Handle join/leave messages
+                    handlePublicMessage(messageData, user);
+                });
+                
+                // Subscribe to specific conversation topic if available
+                if (currentConversationId) {
+                    stompClients[user].subscribe(`/topic/conversations/${currentConversationId}`, message => {
+                        const messageData = JSON.parse(message.body);
+                        console.log(`${user} received conversation message:`, messageData);
+                        
+                        // Handle conversation message
+                        handleConversationMessage(messageData, user);
+                    });
+                    
+                    // Join the conversation (announcement)
+                    stompClients[user].send("/app/chat.addUser", {}, JSON.stringify({
+                        sender: user,
+                        type: 'JOIN'
+                    }));
+                }
+            }, error => {
+                console.error(`${user} WebSocket connection error:`, error);
+                updateConnectionStatus(user, 'disconnected');
+            });
+        }
+        
+        // Update WebSocket connection status indicator
+        function updateConnectionStatus(user, status) {
+            const statusElem = document.getElementById(`connectionStatus${user === 'linh' ? '1' : '2'}`);
+            statusElem.className = `connection-status ${status}`;
+            
+            // Add tooltip text
+            statusElem.title = `WebSocket: ${status}`;
+        }
+        
+        // Handle public messages (join, leave)
+        function handlePublicMessage(message, currentUser) {
+            if (message.type === 'JOIN' || message.type === 'LEAVE') {
+                const container = document.getElementById(`messagesContainer${currentUser === 'linh' ? '1' : '2'}`);
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'text-center text-muted my-2';
+                
+                const eventText = message.type === 'JOIN' ? 'joined the chat' : 'left the chat';
+                messageDiv.textContent = `${message.sender} ${eventText}`;
+                
+                container.appendChild(messageDiv);
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+        
+        // Handle conversation messages
+        function handleConversationMessage(message, currentUser) {
+            if (message.type === 'CHAT') {
+                const container = document.getElementById(`messagesContainer${currentUser === 'linh' ? '1' : '2'}`);
+                const messageDiv = document.createElement('div');
+                const isSent = message.sender === currentUser;
+                
+                messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+                
+                const formattedTime = new Date().toLocaleTimeString();
+                messageDiv.innerHTML = `
+                    <div>${message.content}</div>
+                    <div class="message-timestamp">${message.timestamp || formattedTime}</div>
+                `;
+                
+                container.appendChild(messageDiv);
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+        
+        // Update conversation lists for both users
+        async function updateConversationLists() {
+            try {
+                // Get Linh's conversations
+                const linhConvsResponse = await fetch(`${CHAT_SERVICE_URL}/conversations`, {
+                    headers: {
+                        'Authorization': `Bearer ${userTokens.linh}`
+                    }
+                });
+                
+                const linhConversations = await linhConvsResponse.json();
+                
+                // Get Thai's conversations
+                const thaiConvsResponse = await fetch(`${CHAT_SERVICE_URL}/conversations`, {
+                    headers: {
+                        'Authorization': `Bearer ${userTokens.thai}`
+                    }
+                });
+                
+                const thaiConversations = await thaiConvsResponse.json();
+                
+                // Update UI
+                updateConversationListUI(linhConversations, 'conversationList1', 'linh');
+                updateConversationListUI(thaiConversations, 'conversationList2', 'thai');
+            } catch (error) {
+                console.error('Error updating conversation lists:', error);
+            }
+        }
+        
+        // Update conversation list UI
+        function updateConversationListUI(conversations, elementId, user) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            if (conversations.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No conversations found</div>';
+                return;
+            }
+            
+            conversations.forEach(conv => {
+                const div = document.createElement('div');
+                div.className = 'conversation-item';
+                div.dataset.id = conv.id;
+                
+                // Show the other user's name
+                const otherUser = conv.otherUserId === 'linh' ? 'Linh' : 'Thai';
+                div.textContent = `Chat with ${otherUser}`;
+                
+                div.addEventListener('click', () => {
+                    currentConversationId = conv.id;
+                    loadMessages(conv.id);
+                    
+                    // Subscribe to the new conversation topic
+                    subscribeToConversation(conv.id);
+                });
+                
+                container.appendChild(div);
+            });
+        }
+        
+        // Subscribe both users to a conversation topic
+        function subscribeToConversation(conversationId) {
+            ['linh', 'thai'].forEach(user => {
+                if (stompClients[user] && stompClients[user].connected) {
+                    // Unsubscribe from previous conversation topics (if any)
+                    stompClients[user].unsubscribe(`/topic/conversations/${conversationId}`);
+                    
+                    // Subscribe to the new conversation topic
+                    stompClients[user].subscribe(`/topic/conversations/${conversationId}`, message => {
+                        const messageData = JSON.parse(message.body);
+                        console.log(`${user} received conversation message:`, messageData);
+                        
+                        // Handle conversation message
+                        handleConversationMessage(messageData, user);
+                    });
+                }
+            });
+        }
+        
+        // Set up message sending
+        function setupMessageSending() {
+            // Linh's send button
+            document.getElementById('sendButton1').addEventListener('click', () => {
+                sendMessage('messageInput1', 'linh');
+            });
+            
+            // Thai's send button
+            document.getElementById('sendButton2').addEventListener('click', () => {
+                sendMessage('messageInput2', 'thai');
+            });
+            
+            // Handle Enter key
+            document.getElementById('messageInput1').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage('messageInput1', 'linh');
+                }
+            });
+            
+            document.getElementById('messageInput2').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage('messageInput2', 'thai');
+                }
+            });
+        }
+        
+        // Send a message via WebSocket
+        function sendMessage(inputId, sender) {
+            const input = document.getElementById(inputId);
+            const content = input.value.trim();
+            
+            if (!content || !currentConversationId || !stompClients[sender] || !stompClients[sender].connected) return;
+            
+            try {
+                // Prepare message
+                const chatMessage = {
+                    conversationId: currentConversationId,
+                    sender: sender,
+                    content: content,
+                    type: 'CHAT',
+                    timestamp: new Date().toLocaleString()
+                };
+                
+                // Send via WebSocket
+                stompClients[sender].send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+                
+                // Clear input
+                input.value = '';
+                
+                // Also send via REST API to save in the database
+                saveToDB(chatMessage, sender);
+            } catch (error) {
+                console.error('Error sending message:', error);
+            }
+        }
+        
+        // Save message to database via REST API
+        async function saveToDB(chatMessage, sender) {
+            try {
+                const response = await fetch(`${CHAT_SERVICE_URL}/conversations/${currentConversationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userTokens[sender]}`
+                    },
+                    body: JSON.stringify({
+                        content: chatMessage.content,
+                        contentType: 'TEXT'
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Error saving message to database:', await response.text());
+                }
+            } catch (error) {
+                console.error('Error saving message to database:', error);
+            }
+        }
+        
+        // Load messages for a conversation (initial load only)
+        async function loadMessages(conversationId) {
+            try {
+                // Get messages for Linh
+                const linhMsgsResponse = await fetch(`${CHAT_SERVICE_URL}/conversations/${conversationId}/messages`, {
+                    headers: {
+                        'Authorization': `Bearer ${userTokens.linh}`
+                    }
+                });
+                
+                // Get messages for Thai
+                const thaiMsgsResponse = await fetch(`${CHAT_SERVICE_URL}/conversations/${conversationId}/messages`, {
+                    headers: {
+                        'Authorization': `Bearer ${userTokens.thai}`
+                    }
+                });
+                
+                const linhMessages = await linhMsgsResponse.json();
+                const thaiMessages = await thaiMsgsResponse.json();
+                
+                // Update UI
+                updateMessagesUI(linhMessages.content, 'messagesContainer1', 'linh');
+                updateMessagesUI(thaiMessages.content, 'messagesContainer2', 'thai');
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+        
+        // Update messages UI
+        function updateMessagesUI(messages, containerId, currentUser) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted">No messages yet</div>';
+                return;
+            }
+            
+            // Sort messages by sentAt (oldest first)
+            messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
+            
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                const isSent = msg.senderId === currentUser;
+                
+                messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+                
+                const formattedTime = new Date(msg.sentAt).toLocaleTimeString();
+                messageDiv.innerHTML = `
+                    <div>${msg.content}</div>
+                    <div class="message-timestamp">${formattedTime}</div>
+                `;
+                
+                container.appendChild(messageDiv);
+            });
+            
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // Clean up WebSocket connections when page unloads
+        window.addEventListener('beforeunload', () => {
+            ['linh', 'thai'].forEach(user => {
+                if (stompClients[user] && stompClients[user].connected) {
+                    stompClients[user].disconnect();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
